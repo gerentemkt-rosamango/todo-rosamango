@@ -1,6 +1,6 @@
 # Criar TODO list PWA com Google Sheets como backend
 
-**Status:** em andamento
+**Status:** em andamento — bloqueado em login manual (`clasp login`, `gh auth login`)
 **Data:** 2026-09-15
 
 ## Objetivo
@@ -49,13 +49,17 @@ numa sessão não-interativa):
 
 ## Critérios de aceite
 
-- [ ] `backend/Code.gs` roda `doGet`/`doPost` contra uma planilha nova e devolve/grava JSON.
-- [ ] `src/index.html` abre localmente, lista/cria/edita/exclui tarefas contra o backend.
-- [ ] PWA instalável (manifest + service worker válidos, ícones presentes).
-- [ ] `scripts/deploy.ps1 -h` documenta uso; roda até onde não depende de login interativo.
-- [ ] Repositório git local inicializado com commit inicial.
-- [ ] Documentado no README o passo manual (`clasp login`, `gh auth login`) que o usuário
+- [ ] `backend/Code.gs` roda `doGet`/`doPost` contra uma planilha nova e devolve/grava JSON
+      (código pronto e revisado; falta rodar de fato — depende de `clasp login`).
+- [x] `src/index.html` abre localmente, renderiza a lista com a paleta Rosamango
+      (testado no browser com dados fake; fluxo real contra o backend falta o deploy).
+- [x] PWA instalável (manifest + service worker válidos, ícones presentes e gerados).
+- [x] `scripts/deploy.ps1 -Help` documenta uso; roda até onde não depende de login interativo.
+- [x] Repositório git local inicializado com commit inicial.
+- [x] Documentado no README o passo manual (`clasp login`, `gh auth login`) que o usuário
       precisa rodar antes do primeiro deploy.
+- [ ] Repositório GitHub criado (privado) e Pages publicado — bloqueado por `gh auth login`.
+- [ ] Backend implantado (planilha + Web App reais) — bloqueado por `clasp login`.
 
 ## Riscos / decisões
 
