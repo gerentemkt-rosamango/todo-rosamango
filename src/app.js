@@ -75,65 +75,161 @@ async function carregarTarefas() {
   }
 }
 
+function montarArvore() {
+  const pais = tarefas.filter((t) => !t.parentId);
+  const filhosPorPai = new Map();
+  tarefas
+    .filter((t) => t.parentId)
+    .forEach((filho) => {
+      if (!filhosPorPai.has(filho.parentId)) filhosPorPai.set(filho.parentId, []);
+      filhosPorPai.get(filho.parentId).push(filho);
+    });
+  return pais.map((pai) => ({ pai, subtarefas: filhosPorPai.get(pai.id) || [] }));
+}
+
+function subtarefaCombinaFiltro(subtarefa) {
+  return filtroAtual === 'todas' || subtarefa.status === filtroAtual;
+}
+
 function renderizar() {
-  const filtradas = filtroAtual === 'todas' ? tarefas : tarefas.filter((t) => t.status === filtroAtual);
-
+  const arvore = montarArvore();
   listaEl.innerHTML = '';
-  estadoVazioEl.hidden = filtradas.length > 0;
 
-  filtradas
+  const visiveis = arvore.filter(({ pai, subtarefas }) => {
+    if (filtroAtual === 'todas') return true;
+    if (subtarefas.length === 0) return pai.status === filtroAtual;
+    return subtarefas.some(subtarefaCombinaFiltro);
+  });
+
+  estadoVazioEl.hidden = visiveis.length > 0;
+
+  visiveis
     .slice()
-    .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
-    .forEach((tarefa) => {
-      listaEl.appendChild(criarItem(tarefa));
+    .sort((a, b) => new Date(a.pai.criadoEm) - new Date(b.pai.criadoEm))
+    .forEach(({ pai, subtarefas }) => {
+      listaEl.appendChild(criarCardTarefa(pai, subtarefas));
     });
 }
 
-function criarItem(tarefa) {
+function criarCardTarefa(pai, subtarefas) {
   const li = document.createElement('li');
-  li.className = `tarefa status-${slugStatus(tarefa.status)} cat-${slugCategoria(tarefa.categoria)}`;
+  li.className = 'tarefa-pai';
 
-  const conteudo = document.createElement('div');
-  conteudo.className = 'conteudo';
+  const cabecalho = document.createElement('div');
+  cabecalho.className = 'cabecalho-pai';
 
-  const texto = document.createElement('div');
-  texto.className = 'texto';
-  texto.textContent = tarefa.texto;
+  const titulo = document.createElement('div');
+  titulo.className = 'titulo-pai';
+  titulo.textContent = pai.texto;
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  meta.innerHTML = `
-    <span class="chip cat-${slugCategoria(tarefa.categoria)}">${tarefa.categoria}</span>
-    <span class="chip">${tarefa.status}</span>
-  `;
+  const acoesPai = document.createElement('div');
+  acoesPai.className = 'acoes-pai';
 
-  conteudo.append(texto, meta);
+  if (subtarefas.length > 0) {
+    const concluidas = subtarefas.filter((s) => s.status === 'Concluído').length;
+    const progresso = document.createElement('span');
+    progresso.className = 'chip progresso';
+    progresso.textContent = `${concluidas}/${subtarefas.length} concluídas`;
+    acoesPai.appendChild(progresso);
+  }
 
-  const acoes = document.createElement('div');
-  acoes.className = 'acoes';
+  const botaoExcluirPai = document.createElement('button');
+  botaoExcluirPai.textContent = 'Excluir seção';
+  botaoExcluirPai.className = 'excluir';
+  botaoExcluirPai.addEventListener('click', () => excluirTarefa(pai));
+  acoesPai.appendChild(botaoExcluirPai);
 
-  const proximoStatus = STATUS_ORDEM[(STATUS_ORDEM.indexOf(tarefa.status) + 1) % STATUS_ORDEM.length];
-  const botaoAvancar = document.createElement('button');
-  botaoAvancar.textContent = `→ ${proximoStatus}`;
-  botaoAvancar.addEventListener('click', () => alterarStatus(tarefa, proximoStatus));
+  cabecalho.append(titulo, acoesPai);
 
-  const botaoExcluir = document.createElement('button');
-  botaoExcluir.textContent = 'Excluir';
-  botaoExcluir.className = 'excluir';
-  botaoExcluir.addEventListener('click', () => excluirTarefa(tarefa));
+  const listaSub = document.createElement('ul');
+  listaSub.className = 'lista-subtarefas';
+  subtarefas
+    .filter(subtarefaCombinaFiltro)
+    .forEach((sub) => listaSub.appendChild(criarLinhaSubtarefa(sub)));
 
-  acoes.append(botaoAvancar, botaoExcluir);
-  li.append(conteudo, acoes);
+  const formSub = criarFormSubtarefa(pai.id);
+
+  li.append(cabecalho, listaSub, formSub);
   return li;
 }
 
-async function adicionarTarefa(texto, categoria) {
+function criarLinhaSubtarefa(subtarefa) {
+  const li = document.createElement('li');
+  li.className = `subtarefa status-${slugStatus(subtarefa.status)} cat-${slugCategoria(subtarefa.categoria)}`;
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = subtarefa.status === 'Concluído';
+  checkbox.addEventListener('change', () => {
+    alterarStatus(subtarefa, checkbox.checked ? 'Concluído' : 'Pendente');
+  });
+
+  const texto = document.createElement('span');
+  texto.className = 'texto-sub';
+  texto.textContent = subtarefa.texto;
+
+  const chipCategoria = document.createElement('span');
+  chipCategoria.className = `chip cat-${slugCategoria(subtarefa.categoria)}`;
+  chipCategoria.textContent = subtarefa.categoria;
+
+  const botaoAndamento = document.createElement('button');
+  botaoAndamento.className = 'andamento';
+  botaoAndamento.textContent = subtarefa.status === 'Em andamento' ? '● em andamento' : 'marcar em andamento';
+  botaoAndamento.addEventListener('click', () => {
+    alterarStatus(subtarefa, subtarefa.status === 'Em andamento' ? 'Pendente' : 'Em andamento');
+  });
+
+  const botaoExcluir = document.createElement('button');
+  botaoExcluir.textContent = '✕';
+  botaoExcluir.className = 'excluir-sub';
+  botaoExcluir.title = 'Excluir subtarefa';
+  botaoExcluir.addEventListener('click', () => excluirTarefa(subtarefa));
+
+  li.append(checkbox, texto, chipCategoria, botaoAndamento, botaoExcluir);
+  return li;
+}
+
+function criarFormSubtarefa(parentId) {
+  const form = document.createElement('form');
+  form.className = 'nova-subtarefa';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Nova subtarefa…';
+  input.maxLength = 300;
+
+  const select = document.createElement('select');
+  ['Geral', 'Natal', 'Black Friday', 'Ano Novo'].forEach((cat) => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
+  });
+
+  const botao = document.createElement('button');
+  botao.type = 'submit';
+  botao.textContent = '+';
+
+  form.append(input, select, botao);
+  form.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const texto = input.value.trim();
+    if (!texto) return;
+    adicionarTarefa(texto, select.value, parentId);
+    input.value = '';
+    input.focus();
+  });
+
+  return form;
+}
+
+async function adicionarTarefa(texto, categoria, parentId) {
   botaoAdicionarEl.disabled = true;
   try {
-    const { task } = await chamarBackend({ action: 'create', texto, categoria });
+    const { task } = await chamarBackend({ action: 'create', texto, categoria, parentId: parentId || undefined });
     tarefas.push(task);
     renderizar();
-    mostrarToast('Tarefa adicionada.');
+    mostrarToast(parentId ? 'Subtarefa adicionada.' : 'Tarefa adicionada.');
   } catch (erro) {
     mostrarToast('Erro ao adicionar: ' + erro.message);
   } finally {
@@ -155,14 +251,15 @@ async function alterarStatus(tarefa, novoStatus) {
 }
 
 async function excluirTarefa(tarefa) {
-  const indice = tarefas.findIndex((t) => t.id === tarefa.id);
-  const removida = tarefas.splice(indice, 1)[0];
+  const idsRemovidos = new Set([tarefa.id, ...tarefas.filter((t) => t.parentId === tarefa.id).map((t) => t.id)]);
+  const removidas = tarefas.filter((t) => idsRemovidos.has(t.id));
+  tarefas = tarefas.filter((t) => !idsRemovidos.has(t.id));
   renderizar();
   try {
     await chamarBackend({ action: 'delete', id: tarefa.id });
-    mostrarToast('Tarefa excluída.');
+    mostrarToast('Excluído.');
   } catch (erro) {
-    tarefas.splice(indice, 0, removida);
+    tarefas.push(...removidas);
     renderizar();
     mostrarToast('Erro ao excluir: ' + erro.message);
   }
@@ -172,7 +269,7 @@ formEl.addEventListener('submit', (evento) => {
   evento.preventDefault();
   const texto = campoTextoEl.value.trim();
   if (!texto) return;
-  adicionarTarefa(texto, campoCategoriaEl.value);
+  adicionarTarefa(texto, campoCategoriaEl.value, null);
   campoTextoEl.value = '';
   campoTextoEl.focus();
 });

@@ -129,53 +129,31 @@ ul#lista-tarefas {
   gap: 8px;
 }
 
-li.tarefa {
+li.tarefa-pai {
   border: 1px solid #ddd;
-  border-left: 6px solid var(--cinza);
+  border-left: 6px solid var(--preto);
   border-radius: 6px;
   padding: 12px;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
   background: var(--branco);
 }
 
-li.tarefa.status-pendente {
-  background: var(--status-pendente);
-}
-
-li.tarefa.status-em-andamento {
-  background: var(--status-andamento);
-}
-
-li.tarefa.status-concluido {
-  background: var(--status-concluido);
-  border-left-color: #2ecc71;
-}
-
-li.tarefa.cat-natal { border-left-color: var(--vermelho); }
-li.tarefa.cat-black-friday { border-left-color: var(--preto); }
-li.tarefa.cat-ano-novo { border-left-color: var(--azul); }
-li.tarefa.cat-geral { border-left-color: var(--cinza); }
-
-li.tarefa .conteudo {
-  flex: 1;
-}
-
-li.tarefa .texto {
-  font-size: 1rem;
-  word-break: break-word;
-}
-
-li.tarefa.status-concluido .texto {
-  text-decoration: line-through;
-  color: #555;
-}
-
-li.tarefa .meta {
+.cabecalho-pai {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.titulo-pai {
+  font-size: 1.05rem;
+  font-weight: bold;
+}
+
+.acoes-pai {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -187,6 +165,13 @@ li.tarefa .meta {
   background: var(--cinza-claro);
   color: var(--preto);
   border: 1px solid rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.chip.progresso {
+  background: var(--preto);
+  color: var(--branco);
+  border-color: var(--preto);
 }
 
 .chip.cat-natal { background: var(--cor-natal); }
@@ -194,14 +179,9 @@ li.tarefa .meta {
 .chip.cat-ano-novo { background: var(--cor-ano-novo); }
 .chip.cat-geral { background: var(--cor-geral); }
 
-li.tarefa .acoes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-li.tarefa .acoes button {
-  border: 1px solid var(--preto);
+button.excluir {
+  border: 1px solid var(--vermelho);
+  color: var(--vermelho);
   background: var(--branco);
   border-radius: 4px;
   padding: 6px 10px;
@@ -210,9 +190,107 @@ li.tarefa .acoes button {
   white-space: nowrap;
 }
 
-li.tarefa .acoes button.excluir {
-  border-color: var(--vermelho);
+.lista-subtarefas {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+li.subtarefa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 4px solid var(--cinza);
+  background: var(--branco);
+}
+
+li.subtarefa.status-pendente { background: var(--status-pendente); }
+li.subtarefa.status-em-andamento { background: var(--status-andamento); }
+li.subtarefa.status-concluido { background: var(--status-concluido); }
+
+li.subtarefa.cat-natal { border-left-color: var(--vermelho); }
+li.subtarefa.cat-black-friday { border-left-color: var(--preto); }
+li.subtarefa.cat-ano-novo { border-left-color: var(--azul); }
+li.subtarefa.cat-geral { border-left-color: var(--cinza); }
+
+li.subtarefa input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--vermelho);
+}
+
+li.subtarefa .texto-sub {
+  flex: 1;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+li.subtarefa.status-concluido .texto-sub {
+  text-decoration: line-through;
+  color: #555;
+}
+
+li.subtarefa button.andamento {
+  border: 1px solid #999;
+  background: var(--branco);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #555;
+}
+
+li.subtarefa.status-em-andamento button.andamento {
+  border-color: #b7950b;
+  color: #7d6608;
+  font-weight: bold;
+}
+
+li.subtarefa button.excluir-sub {
+  border: none;
+  background: none;
   color: var(--vermelho);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+}
+
+form.nova-subtarefa {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+form.nova-subtarefa input[type="text"] {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+form.nova-subtarefa select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: var(--branco);
+}
+
+form.nova-subtarefa button {
+  border: 1px solid var(--preto);
+  background: var(--branco);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 .estado-vazio,
@@ -251,17 +329,19 @@ li.tarefa .acoes button.excluir {
     color: var(--branco);
   }
 
-  li.tarefa {
+  li.tarefa-pai {
     background: #1e1e1e;
     border-color: #333;
   }
 
-  li.tarefa.status-pendente { background: #242424; }
-  li.tarefa.status-em-andamento { background: #3a3520; }
-  li.tarefa.status-concluido { background: #1e3226; }
+  li.subtarefa.status-pendente { background: #242424; }
+  li.subtarefa.status-em-andamento { background: #3a3520; }
+  li.subtarefa.status-concluido { background: #1e3226; }
 
   form#nova-tarefa input[type="text"],
-  form#nova-tarefa select {
+  form#nova-tarefa select,
+  form.nova-subtarefa input[type="text"],
+  form.nova-subtarefa select {
     background: #1e1e1e;
     color: var(--branco);
     border-color: #555;
@@ -271,5 +351,12 @@ li.tarefa .acoes button.excluir {
     background: #1e1e1e;
     color: var(--branco);
     border-color: #555;
+  }
+
+  button.excluir,
+  li.subtarefa button.andamento,
+  form.nova-subtarefa button {
+    background: #1e1e1e;
+    color: var(--branco);
   }
 }
