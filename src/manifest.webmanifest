@@ -1,12 +1,12 @@
 {
-  "name": "CHECKLIST - Natal Rosamango",
-  "short_name": "Checklist Natal",
-  "description": "Checklist de Natal colaborativo da Rosamango, com Google Sheets como backend.",
+  "name": "CHECKLIST FINAL DO ANO - GRUPO FIZZ",
+  "short_name": "Checklist Fim de Ano",
+  "description": "Checklist final de ano do Grupo Fizz, com Google Sheets como backend.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#ffffff",
   "lang": "pt-BR",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
