@@ -1,0 +1,14 @@
+# Segredos
+.env
+.clasprc.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Apps Script (gerado pelo clasp, contém scriptId — mantemos versionado o resto)
+.clasp.json.bak
