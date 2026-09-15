@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TODO Rosamango</title>
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Lista de tarefas colaborativa da Rosamango, com Google Sheets como backend." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>TODO Rosamango</h1>
+      <div class="subtitulo">Sincronizado com Google Sheets</div>
+    </div>
+  </header>
+
+  <main>
+    <form id="nova-tarefa" autocomplete="off">
+      <input type="text" id="campo-texto" placeholder="Nova tarefa…" maxlength="300" required />
+      <select id="campo-categoria">
+        <option value="Geral">Geral</option>
+        <option value="Natal">Natal</option>
+        <option value="Black Friday">Black Friday</option>
+        <option value="Ano Novo">Ano Novo</option>
+      </select>
+      <button type="submit" id="botao-adicionar">Adicionar</button>
+    </form>
+
+    <div class="filtros" id="filtros">
+      <button data-filtro="todas" class="ativo">Todas</button>
+      <button data-filtro="Pendente">Pendente</button>
+      <button data-filtro="Em andamento">Em andamento</button>
+      <button data-filtro="Concluído">Concluído</button>
+    </div>
+
+    <ul id="lista-tarefas"></ul>
+    <div class="estado-vazio" id="estado-vazio" hidden>Nenhuma tarefa ainda. Adicione a primeira acima.</div>
+    <div class="estado-erro" id="estado-erro" hidden></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

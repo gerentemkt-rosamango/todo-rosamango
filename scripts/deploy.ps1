@@ -80,7 +80,7 @@ if (-not $SkipBackend) {
     Write-Host "`n-- Backend (Apps Script) --" -ForegroundColor Yellow
     $backendDir = Join-Path $root 'backend'
 
-    clasp login --status *> $null
+    clasp show-authorized-user *> $null
     if (-not $?) {
         Write-Warning "clasp não está logado. Rode 'clasp login' manualmente (abre o navegador) e execute este script de novo. Pulando o backend."
     } else {
@@ -88,17 +88,17 @@ if (-not $SkipBackend) {
         if (-not (Test-Path $claspConfig)) {
             Write-Host "Criando planilha + projeto Apps Script: '$SheetTitle'..."
             Push-Location $backendDir
-            clasp create --type sheets --title $SheetTitle --rootDir .
+            clasp create-script --type sheets --title $SheetTitle --rootDir .
             Pop-Location
         }
 
         Write-Host "Enviando código (clasp push)..."
-        clasp push --rootDir $backendDir --force
+        clasp -P $backendDir push --force
 
         Write-Host "Publicando deployment (clasp deploy)..."
-        clasp deploy --rootDir $backendDir --description ("deploy " + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+        clasp -P $backendDir create-deployment --description ("deploy " + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 
-        $deployments = clasp deployments --rootDir $backendDir
+        $deployments = clasp -P $backendDir list-deployments
         $deploymentId = ($deployments -split "`n" | Select-String -Pattern '- (\S+)\s' | Select-Object -Last 1).Matches.Groups[1].Value
 
         if ($deploymentId) {
