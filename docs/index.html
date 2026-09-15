@@ -3,45 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>TODO Rosamango</title>
-  <meta name="theme-color" content="#000000" />
-  <meta name="description" content="Lista de tarefas colaborativa da Rosamango, com Google Sheets como backend." />
+  <title>CHECKLIST - Natal Rosamango</title>
+  <meta name="theme-color" content="#0c0c0c" />
+  <meta name="description" content="Checklist de Natal da Rosamango, sincronizado com Google Sheets." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="app-header">
-    <div>
-      <h1>TODO Rosamango</h1>
-      <div class="subtitulo">Sincronizado com Google Sheets</div>
-    </div>
-  </header>
+  <div class="wrap">
+    <header class="top">
+      <div class="top-row">
+        <div>
+          <div class="eyebrow">Grupo Fizz · Rosamango</div>
+          <h1>CHECKLIST - Natal Rosamango</h1>
+          <p class="subtitle">Planejamento colaborativo — editável ao vivo, sincronizado com Google Sheets.</p>
+        </div>
+        <div class="sync-pill"><span class="sync-dot loading" id="sync-dot"></span><span id="sync-label">conectando…</span></div>
+      </div>
+      <div class="progress-overall">
+        <div class="bar"><div class="fill" id="overall-fill" style="width: 0%"></div></div>
+        <div class="progress-label"><span id="overall-label">0 de 0 itens concluídos</span><span id="overall-pct">0%</span></div>
+      </div>
+    </header>
 
-  <main>
-    <form id="nova-tarefa" autocomplete="off">
-      <input type="text" id="campo-texto" placeholder="Nova seção/tarefa…" maxlength="300" required />
-      <select id="campo-categoria">
-        <option value="Geral">Geral</option>
-        <option value="Natal">Natal</option>
-        <option value="Black Friday">Black Friday</option>
-        <option value="Ano Novo">Ano Novo</option>
-      </select>
-      <button type="submit" id="botao-adicionar">Adicionar</button>
+    <div class="off-banner" id="estado-erro" hidden></div>
+
+    <div class="filters" id="filtros">
+      <button class="filter-chip" data-filtro="todas" data-active="true">Todos</button>
+      <button class="filter-chip" data-filtro="Natal"><span class="dot" style="background: var(--red)"></span>Natal</button>
+      <button class="filter-chip" data-filtro="Black Friday"><span class="dot" style="background: var(--bf-bg); border: 1px solid var(--border)"></span>Black Friday</button>
+      <button class="filter-chip" data-filtro="Ano Novo"><span class="dot" style="background: var(--ny-fg)"></span>Ano Novo</button>
+      <button class="filter-chip" data-filtro="Geral"><span class="dot" style="background: var(--geral-fg)"></span>Geral</button>
+    </div>
+
+    <div id="board"></div>
+
+    <form id="nova-secao" class="add-section-form">
+      <input type="text" id="campo-texto" placeholder="Nova seção…" maxlength="120" />
+      <button type="submit" id="botao-adicionar">+ Seção</button>
     </form>
 
-    <div class="filtros" id="filtros">
-      <button data-filtro="todas" class="ativo">Todas</button>
-      <button data-filtro="Pendente">Pendente</button>
-      <button data-filtro="Em andamento">Em andamento</button>
-      <button data-filtro="Concluído">Concluído</button>
-    </div>
-
-    <ul id="lista-tarefas"></ul>
-    <div class="estado-vazio" id="estado-vazio" hidden>Nenhuma tarefa ainda. Adicione a primeira acima.</div>
-    <div class="estado-erro" id="estado-erro" hidden></div>
-  </main>
+    <footer>Toque no ✓ pra concluir, no texto pra editar, na etiqueta colorida pra trocar a campanha.</footer>
+  </div>
 
   <div class="toast" id="toast"></div>
 

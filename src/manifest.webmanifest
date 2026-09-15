@@ -1,7 +1,7 @@
 {
-  "name": "TODO Rosamango",
-  "short_name": "TODO Rosamango",
-  "description": "Lista de tarefas colaborativa da Rosamango, com Google Sheets como backend.",
+  "name": "CHECKLIST - Natal Rosamango",
+  "short_name": "Checklist Natal",
+  "description": "Checklist de Natal colaborativo da Rosamango, com Google Sheets como backend.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

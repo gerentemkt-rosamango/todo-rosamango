@@ -1,29 +1,45 @@
-const STATUS_ORDEM = ['Pendente', 'Em andamento', 'Concluído'];
+const CAMPANHAS = ['Natal', 'Black Friday', 'Ano Novo', 'Geral'];
+const TAG_CLASS = {
+  'Natal': 'tag-natal',
+  'Black Friday': 'tag-black-friday',
+  'Ano Novo': 'tag-ano-novo',
+  'Geral': 'tag-geral'
+};
+const ICONE_SECAO = {
+  'Vitrinismo': '🪟',
+  'Casa Rosamango': '🏠',
+  'Shooting Natal': '📸',
+  'VM das Lojas': '🏷️',
+  'Embalagens': '🎁',
+  'Porta-Recados e Combos': '🎀',
+  'Rádio Rosamango': '🎵',
+  'CRM': '📲',
+  'Material de Vendas': '📦',
+  'Festa de Confraternização': '🥂',
+  'Franquias': '🤝'
+};
+const ICONE_PADRAO = '📌';
 const CACHE_KEY = 'todo-rosamango:cache';
 
-const listaEl = document.getElementById('lista-tarefas');
-const estadoVazioEl = document.getElementById('estado-vazio');
+const boardEl = document.getElementById('board');
 const estadoErroEl = document.getElementById('estado-erro');
-const formEl = document.getElementById('nova-tarefa');
-const campoTextoEl = document.getElementById('campo-texto');
-const campoCategoriaEl = document.getElementById('campo-categoria');
-const botaoAdicionarEl = document.getElementById('botao-adicionar');
 const filtrosEl = document.getElementById('filtros');
+const formSecaoEl = document.getElementById('nova-secao');
+const campoTextoEl = document.getElementById('campo-texto');
+const botaoAdicionarEl = document.getElementById('botao-adicionar');
 const toastEl = document.getElementById('toast');
+const syncDotEl = document.getElementById('sync-dot');
+const syncLabelEl = document.getElementById('sync-label');
+const overallFillEl = document.getElementById('overall-fill');
+const overallLabelEl = document.getElementById('overall-label');
+const overallPctEl = document.getElementById('overall-pct');
 
 let tarefas = [];
 let filtroAtual = 'todas';
+const secoesRecolhidas = new Set();
 
-function slugCategoria(categoria) {
-  return (categoria || 'Geral')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, '-');
-}
-
-function slugStatus(status) {
-  return slugCategoria(status);
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 function mostrarToast(mensagem) {
@@ -34,6 +50,16 @@ function mostrarToast(mensagem) {
 
 function urlConfigurada() {
   return CONFIG && CONFIG.WEBAPP_URL && CONFIG.WEBAPP_URL.indexOf('COLE_AQUI') === -1;
+}
+
+function setSync(estado, detalhe) {
+  syncDotEl.className = 'sync-dot' + (estado === 'loading' ? ' loading' : estado === 'off' ? ' off' : '');
+  syncLabelEl.textContent = estado === 'loading' ? 'conectando…' : estado === 'off' ? 'sem sincronização' : 'sincronizado';
+  const offline = estado === 'off';
+  estadoErroEl.hidden = !offline;
+  if (offline) {
+    estadoErroEl.innerHTML = `<strong>${esc(detalhe || 'Sem conexão com o backend.')}</strong>`;
+  }
 }
 
 async function chamarBackend(payload) {
@@ -47,31 +73,31 @@ async function chamarBackend(payload) {
   return dados;
 }
 
-async function carregarTarefas() {
+async function carregarTarefas(tentativa = 1) {
   if (!urlConfigurada()) {
-    estadoErroEl.hidden = false;
-    estadoErroEl.textContent =
-      'Backend não configurado ainda: edite src/config.js (ou rode scripts/deploy.ps1) com a URL do Web App do Apps Script.';
+    setSync('off', 'Backend não configurado ainda: edite src/config.js (ou rode scripts/deploy.ps1) com a URL do Web App do Apps Script.');
     return;
   }
+  setSync('loading');
   try {
     const resposta = await fetch(CONFIG.WEBAPP_URL);
     const dados = await resposta.json();
     if (!dados.ok) throw new Error(dados.error || 'Erro ao carregar tarefas.');
     tarefas = dados.tasks || [];
     localStorage.setItem(CACHE_KEY, JSON.stringify(tarefas));
-    estadoErroEl.hidden = true;
+    setSync('on');
     renderizar();
   } catch (erro) {
+    if (tentativa < 3) {
+      setTimeout(() => carregarTarefas(tentativa + 1), 1000 * tentativa);
+      return;
+    }
     const cache = localStorage.getItem(CACHE_KEY);
     if (cache) {
       tarefas = JSON.parse(cache);
       renderizar();
-      mostrarToast('Sem conexão — mostrando última lista salva.');
-    } else {
-      estadoErroEl.hidden = false;
-      estadoErroEl.textContent = 'Não foi possível carregar as tarefas: ' + erro.message;
     }
+    setSync('off', 'Sem conexão com o backend — ' + erro.message + (cache ? ' (mostrando última lista salva).' : ''));
   }
 }
 
@@ -84,138 +110,187 @@ function montarArvore() {
       if (!filhosPorPai.has(filho.parentId)) filhosPorPai.set(filho.parentId, []);
       filhosPorPai.get(filho.parentId).push(filho);
     });
-  return pais.map((pai) => ({ pai, subtarefas: filhosPorPai.get(pai.id) || [] }));
+  return pais
+    .slice()
+    .sort((a, b) => new Date(a.criadoEm) - new Date(b.criadoEm))
+    .map((pai) => ({ pai, subtarefas: filhosPorPai.get(pai.id) || [] }));
 }
 
-function subtarefaCombinaFiltro(subtarefa) {
-  return filtroAtual === 'todas' || subtarefa.status === filtroAtual;
+function combinaFiltro(sub) {
+  return filtroAtual === 'todas' || (sub.categoria || 'Geral') === filtroAtual;
 }
 
 function renderizar() {
   const arvore = montarArvore();
-  listaEl.innerHTML = '';
+  boardEl.innerHTML = '';
 
-  const visiveis = arvore.filter(({ pai, subtarefas }) => {
-    if (filtroAtual === 'todas') return true;
-    if (subtarefas.length === 0) return pai.status === filtroAtual;
-    return subtarefas.some(subtarefaCombinaFiltro);
+  let totalGeral = 0;
+  let concluidasGeral = 0;
+
+  arvore.forEach(({ pai, subtarefas }) => {
+    totalGeral += subtarefas.length;
+    concluidasGeral += subtarefas.filter((s) => s.status === 'Concluído').length;
   });
 
-  estadoVazioEl.hidden = visiveis.length > 0;
+  const pct = totalGeral ? Math.round((concluidasGeral / totalGeral) * 100) : 0;
+  overallLabelEl.textContent = `${concluidasGeral} de ${totalGeral} itens concluídos`;
+  overallPctEl.textContent = pct + '%';
+  overallFillEl.style.width = pct + '%';
 
-  visiveis
-    .slice()
-    .sort((a, b) => new Date(a.pai.criadoEm) - new Date(b.pai.criadoEm))
-    .forEach(({ pai, subtarefas }) => {
-      listaEl.appendChild(criarCardTarefa(pai, subtarefas));
-    });
-}
-
-function criarCardTarefa(pai, subtarefas) {
-  const li = document.createElement('li');
-  li.className = 'tarefa-pai';
-
-  const cabecalho = document.createElement('div');
-  cabecalho.className = 'cabecalho-pai';
-
-  const titulo = document.createElement('div');
-  titulo.className = 'titulo-pai';
-  titulo.textContent = pai.texto;
-
-  const acoesPai = document.createElement('div');
-  acoesPai.className = 'acoes-pai';
-
-  if (subtarefas.length > 0) {
-    const concluidas = subtarefas.filter((s) => s.status === 'Concluído').length;
-    const progresso = document.createElement('span');
-    progresso.className = 'chip progresso';
-    progresso.textContent = `${concluidas}/${subtarefas.length} concluídas`;
-    acoesPai.appendChild(progresso);
+  if (arvore.length === 0) {
+    boardEl.innerHTML = '<div class="empty-state">Nenhuma seção ainda — crie uma abaixo.</div>';
+    return;
   }
 
-  const botaoExcluirPai = document.createElement('button');
-  botaoExcluirPai.textContent = 'Excluir seção';
-  botaoExcluirPai.className = 'excluir';
-  botaoExcluirPai.addEventListener('click', () => excluirTarefa(pai));
-  acoesPai.appendChild(botaoExcluirPai);
-
-  cabecalho.append(titulo, acoesPai);
-
-  const listaSub = document.createElement('ul');
-  listaSub.className = 'lista-subtarefas';
-  subtarefas
-    .filter(subtarefaCombinaFiltro)
-    .forEach((sub) => listaSub.appendChild(criarLinhaSubtarefa(sub)));
-
-  const formSub = criarFormSubtarefa(pai.id);
-
-  li.append(cabecalho, listaSub, formSub);
-  return li;
+  arvore.forEach(({ pai, subtarefas }) => {
+    boardEl.appendChild(criarSecao(pai, subtarefas));
+  });
 }
 
-function criarLinhaSubtarefa(subtarefa) {
-  const li = document.createElement('li');
-  li.className = `subtarefa status-${slugStatus(subtarefa.status)} cat-${slugCategoria(subtarefa.categoria)}`;
+function criarSecao(pai, subtarefas) {
+  const secao = document.createElement('section');
+  secao.className = 'section' + (secoesRecolhidas.has(pai.id) ? ' collapsed' : '');
+  secao.dataset.id = pai.id;
 
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.checked = subtarefa.status === 'Concluído';
-  checkbox.addEventListener('change', () => {
-    alterarStatus(subtarefa, checkbox.checked ? 'Concluído' : 'Pendente');
+  const concluidas = subtarefas.filter((s) => s.status === 'Concluído').length;
+  const icone = ICONE_SECAO[pai.texto] || ICONE_PADRAO;
+
+  const head = document.createElement('div');
+  head.className = 'section-head';
+  head.innerHTML = `
+    <div class="section-icon">${icone}</div>
+    <div class="section-titles"><h3 contenteditable="true" spellcheck="false">${esc(pai.texto)}</h3></div>
+    <div class="section-count">${concluidas}/${subtarefas.length}</div>
+    <button type="button" class="section-delete" title="Excluir seção" data-acao="excluir-secao">✕</button>
+    <button type="button" class="section-toggle" data-acao="toggle" aria-label="Expandir/recolher">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  `;
+  const tituloEl = head.querySelector('h3');
+  tituloEl.addEventListener('click', (evento) => evento.stopPropagation());
+  tituloEl.addEventListener('focusout', () => {
+    const novoTexto = tituloEl.textContent.trim();
+    if (!novoTexto) {
+      tituloEl.textContent = pai.texto;
+      return;
+    }
+    if (novoTexto !== pai.texto) editarTexto(pai, novoTexto);
+  });
+  tituloEl.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter') {
+      evento.preventDefault();
+      tituloEl.blur();
+    }
+  });
+  head.querySelector('[data-acao="toggle"]').addEventListener('click', () => {
+    secao.classList.toggle('collapsed');
+    if (secao.classList.contains('collapsed')) secoesRecolhidas.add(pai.id);
+    else secoesRecolhidas.delete(pai.id);
+  });
+  head.querySelector('[data-acao="excluir-secao"]').addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    excluirTarefa(pai);
+  });
+  head.addEventListener('click', (evento) => {
+    if (evento.target.closest('button')) return;
+    secao.classList.toggle('collapsed');
+    if (secao.classList.contains('collapsed')) secoesRecolhidas.add(pai.id);
+    else secoesRecolhidas.delete(pai.id);
   });
 
-  const texto = document.createElement('span');
-  texto.className = 'texto-sub';
-  texto.textContent = subtarefa.texto;
+  const body = document.createElement('div');
+  body.className = 'section-body';
 
-  const chipCategoria = document.createElement('span');
-  chipCategoria.className = `chip cat-${slugCategoria(subtarefa.categoria)}`;
-  chipCategoria.textContent = subtarefa.categoria;
+  const visiveis = subtarefas.filter(combinaFiltro);
+  if (visiveis.length === 0) {
+    const vazio = document.createElement('div');
+    vazio.className = 'empty-state';
+    vazio.textContent = filtroAtual === 'todas' ? 'Nenhum item ainda — adicione abaixo.' : 'Nenhum item nessa campanha.';
+    body.appendChild(vazio);
+  } else {
+    visiveis.forEach((sub) => body.appendChild(criarLinhaItem(sub)));
+  }
 
-  const botaoAndamento = document.createElement('button');
-  botaoAndamento.className = 'andamento';
-  botaoAndamento.textContent = subtarefa.status === 'Em andamento' ? '● em andamento' : 'marcar em andamento';
-  botaoAndamento.addEventListener('click', () => {
-    alterarStatus(subtarefa, subtarefa.status === 'Em andamento' ? 'Pendente' : 'Em andamento');
-  });
+  body.appendChild(criarFormItem(pai.id));
 
-  const botaoExcluir = document.createElement('button');
-  botaoExcluir.textContent = '✕';
-  botaoExcluir.className = 'excluir-sub';
-  botaoExcluir.title = 'Excluir subtarefa';
-  botaoExcluir.addEventListener('click', () => excluirTarefa(subtarefa));
-
-  li.append(checkbox, texto, chipCategoria, botaoAndamento, botaoExcluir);
-  return li;
+  secao.append(head, body);
+  return secao;
 }
 
-function criarFormSubtarefa(parentId) {
+function criarLinhaItem(item) {
+  const linha = document.createElement('div');
+  const categoria = CAMPANHAS.includes(item.categoria) ? item.categoria : 'Geral';
+  const concluido = item.status === 'Concluído';
+  linha.className = 'item-row' + (concluido ? ' checked' : '');
+  linha.dataset.id = item.id;
+
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.className = 'item-check';
+  check.checked = concluido;
+  check.addEventListener('change', () => {
+    alterarStatus(item, check.checked ? 'Concluído' : 'Pendente');
+  });
+
+  const texto = document.createElement('div');
+  texto.className = 'item-text';
+  texto.contentEditable = 'true';
+  texto.spellcheck = false;
+  texto.textContent = item.texto;
+  texto.addEventListener('focusout', () => {
+    const novoTexto = texto.textContent.trim();
+    if (!novoTexto) {
+      texto.textContent = item.texto;
+      return;
+    }
+    if (novoTexto !== item.texto) editarTexto(item, novoTexto);
+  });
+  texto.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter') {
+      evento.preventDefault();
+      texto.blur();
+    }
+  });
+
+  const tag = document.createElement('button');
+  tag.type = 'button';
+  tag.className = 'item-tag ' + TAG_CLASS[categoria];
+  tag.textContent = categoria;
+  tag.addEventListener('click', () => {
+    const proxima = CAMPANHAS[(CAMPANHAS.indexOf(categoria) + 1) % CAMPANHAS.length];
+    alterarCategoria(item, proxima);
+  });
+
+  const excluir = document.createElement('button');
+  excluir.type = 'button';
+  excluir.className = 'item-delete';
+  excluir.setAttribute('aria-label', 'Remover item');
+  excluir.textContent = '×';
+  excluir.addEventListener('click', () => excluirTarefa(item));
+
+  linha.append(check, texto, tag, excluir);
+  return linha;
+}
+
+function criarFormItem(parentId) {
   const form = document.createElement('form');
-  form.className = 'nova-subtarefa';
+  form.className = 'add-item-form';
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'Nova subtarefa…';
+  input.placeholder = 'Adicionar item…';
   input.maxLength = 300;
-
-  const select = document.createElement('select');
-  ['Geral', 'Natal', 'Black Friday', 'Ano Novo'].forEach((cat) => {
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    select.appendChild(opt);
-  });
 
   const botao = document.createElement('button');
   botao.type = 'submit';
-  botao.textContent = '+';
+  botao.textContent = 'Adicionar';
 
-  form.append(input, select, botao);
+  form.append(input, botao);
   form.addEventListener('submit', (evento) => {
     evento.preventDefault();
     const texto = input.value.trim();
     if (!texto) return;
-    adicionarTarefa(texto, select.value, parentId);
+    adicionarTarefa(texto, 'Geral', parentId);
     input.value = '';
     input.focus();
   });
@@ -224,16 +299,12 @@ function criarFormSubtarefa(parentId) {
 }
 
 async function adicionarTarefa(texto, categoria, parentId) {
-  botaoAdicionarEl.disabled = true;
   try {
     const { task } = await chamarBackend({ action: 'create', texto, categoria, parentId: parentId || undefined });
     tarefas.push(task);
     renderizar();
-    mostrarToast(parentId ? 'Subtarefa adicionada.' : 'Tarefa adicionada.');
   } catch (erro) {
     mostrarToast('Erro ao adicionar: ' + erro.message);
-  } finally {
-    botaoAdicionarEl.disabled = false;
   }
 }
 
@@ -250,6 +321,31 @@ async function alterarStatus(tarefa, novoStatus) {
   }
 }
 
+async function alterarCategoria(tarefa, novaCategoria) {
+  const anterior = tarefa.categoria;
+  tarefa.categoria = novaCategoria;
+  renderizar();
+  try {
+    await chamarBackend({ action: 'update', id: tarefa.id, categoria: novaCategoria });
+  } catch (erro) {
+    tarefa.categoria = anterior;
+    renderizar();
+    mostrarToast('Erro ao mudar categoria: ' + erro.message);
+  }
+}
+
+async function editarTexto(tarefa, novoTexto) {
+  const anterior = tarefa.texto;
+  tarefa.texto = novoTexto;
+  try {
+    await chamarBackend({ action: 'update', id: tarefa.id, texto: novoTexto });
+  } catch (erro) {
+    tarefa.texto = anterior;
+    renderizar();
+    mostrarToast('Erro ao editar: ' + erro.message);
+  }
+}
+
 async function excluirTarefa(tarefa) {
   const idsRemovidos = new Set([tarefa.id, ...tarefas.filter((t) => t.parentId === tarefa.id).map((t) => t.id)]);
   const removidas = tarefas.filter((t) => idsRemovidos.has(t.id));
@@ -257,7 +353,6 @@ async function excluirTarefa(tarefa) {
   renderizar();
   try {
     await chamarBackend({ action: 'delete', id: tarefa.id });
-    mostrarToast('Excluído.');
   } catch (erro) {
     tarefas.push(...removidas);
     renderizar();
@@ -265,20 +360,20 @@ async function excluirTarefa(tarefa) {
   }
 }
 
-formEl.addEventListener('submit', (evento) => {
+formSecaoEl.addEventListener('submit', (evento) => {
   evento.preventDefault();
   const texto = campoTextoEl.value.trim();
   if (!texto) return;
-  adicionarTarefa(texto, campoCategoriaEl.value, null);
+  adicionarTarefa(texto, 'Geral', null);
   campoTextoEl.value = '';
   campoTextoEl.focus();
 });
 
 filtrosEl.addEventListener('click', (evento) => {
-  const botao = evento.target.closest('button[data-filtro]');
-  if (!botao) return;
-  filtroAtual = botao.dataset.filtro;
-  [...filtrosEl.querySelectorAll('button')].forEach((b) => b.classList.toggle('ativo', b === botao));
+  const chip = evento.target.closest('.filter-chip');
+  if (!chip) return;
+  filtroAtual = chip.dataset.filtro;
+  [...filtrosEl.querySelectorAll('.filter-chip')].forEach((c) => c.dataset.active = String(c === chip));
   renderizar();
 });
 
