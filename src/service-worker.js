@@ -1,4 +1,4 @@
-const CACHE_NAME = 'todo-rosamango-v1';
+const CACHE_NAME = 'todo-rosamango-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -30,14 +30,16 @@ self.addEventListener('fetch', (evento) => {
   // Chamadas ao backend (Apps Script, outra origem) nunca passam pelo cache: sempre rede.
   if (url.origin !== self.location.origin) return;
 
+  // Rede primeiro: todo deploy novo aparece na hora; o cache só serve quando está offline.
   evento.respondWith(
-    caches.match(evento.request).then((respostaCache) => {
-      if (respostaCache) return respostaCache;
-      return fetch(evento.request).then((respostaRede) => {
-        const clone = respostaRede.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, clone));
+    fetch(evento.request, { cache: 'no-cache' })
+      .then((respostaRede) => {
+        if (respostaRede.ok) {
+          const clone = respostaRede.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, clone));
+        }
         return respostaRede;
-      });
-    })
+      })
+      .catch(() => caches.match(evento.request))
   );
 });

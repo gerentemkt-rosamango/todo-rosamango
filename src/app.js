@@ -384,3 +384,34 @@ if ('serviceWorker' in navigator) {
 }
 
 carregarTarefas();
+
+// Atualização automática: busca a lista de novo a cada 30s e ao voltar para a aba,
+// para ver o que outras pessoas marcaram sem precisar recarregar a página.
+const INTERVALO_ATUALIZACAO_MS = 30000;
+
+function editandoAgora() {
+  const ativo = document.activeElement;
+  return !!ativo && (ativo.isContentEditable || ativo.tagName === 'INPUT' || ativo.tagName === 'TEXTAREA');
+}
+
+async function atualizarEmSegundoPlano() {
+  if (document.hidden || editandoAgora() || !urlConfigurada()) return;
+  try {
+    const resposta = await fetch(CONFIG.WEBAPP_URL);
+    const dados = await resposta.json();
+    if (!dados.ok || editandoAgora()) return;
+    const novas = dados.tasks || [];
+    if (JSON.stringify(novas) === JSON.stringify(tarefas)) return;
+    tarefas = novas;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(tarefas));
+    setSync('on');
+    renderizar();
+  } catch (erro) {
+    // Falha pontual de rede: mantém a lista atual e tenta no próximo ciclo.
+  }
+}
+
+setInterval(atualizarEmSegundoPlano, INTERVALO_ATUALIZACAO_MS);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) atualizarEmSegundoPlano();
+});
